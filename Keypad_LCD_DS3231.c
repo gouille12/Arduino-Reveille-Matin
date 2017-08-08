@@ -6,11 +6,11 @@
 
 
 2. Pouvoir afficher le bon mode sans avoir à modifier le shit - PROCHAINE ÉTAPE
-  Tout afficher sur l'écran en même temps
-  Ligne 1 = Date
-  Ligne 2 = Heure
-  Ligne 3 = Pas d'alarme/Heure de l'alarme
-  Ligne 4 = Pas de countdown/Temps restant au count
+	Tout afficher sur l'écran en même temps
+	Ligne 1 = Date
+	Ligne 2 = Heure
+	Ligne 3 = Pas d'alarme/Heure de l'alarme
+	Ligne 4 = Pas de countdown/Temps restant au count
 
 3. Bouton pour la backlight (bouton physique on/off)
 4. Gestion des input erronés (* = back)
