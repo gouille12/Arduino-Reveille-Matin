@@ -5,13 +5,6 @@
 07-08-2017-14h12 = Compte à rebours ok
 
 
-2. Pouvoir afficher le bon mode sans avoir à modifier le shit - PROCHAINE ÉTAPE
-	Tout afficher sur l'écran en même temps
-	Ligne 1 = Date
-	Ligne 2 = Heure
-	Ligne 3 = Pas d'alarme/Heure de l'alarme
-	Ligne 4 = Pas de countdown/Temps restant au count
-
 3. Bouton pour la backlight (bouton physique on/off)
 4. Gestion des input erronés (* = back)
 5. Avoir un effet lumineux lors d'un interrupt (6 LED qui éclaire l'une après l'autre en cercle?)
@@ -25,6 +18,11 @@
 13. Test de toutes les fonctions
 14. sauver le code sur github
 15. Penser à ce que je recherche dans un réveille-matin
+16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
+18. Charger les piles au complet
+19. Utiliser la fonction Timettostring pour les alarmes
+
+17. Afficher le jour de la semaine en lettres + retirer set jour de semaine + commit - PROCHAINE ÉTAPE
 */
 
 
@@ -53,6 +51,9 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 time_t actualTime;
 char keyPressed;
 volatile bool clockInterrupt = false;
+String alarmlcd1 = "";
+String alarmlcd2 = "";
+
 
 String timeTToString(time_t t) {
 
@@ -67,7 +68,10 @@ String dateTToString(time_t t) {
   return strDateT;
 }
 
-
+void clearLine(int line) {
+  lcd.setCursor(0, line);
+  lcd.print("                    ");
+}
 
 
 
@@ -184,7 +188,7 @@ void setAlarm2() {
         lcd.print(":");
       }
       lcd.print(keyPressed);
-      alarmToSet = alarmToSet + keyPressed; // HHMMSS
+      alarmToSet = alarmToSet + keyPressed; // HHMM
     }
   }
 
@@ -193,7 +197,9 @@ void setAlarm2() {
   RTC.setAlarm(ALM2_MATCH_HOURS, 0, alarmToSet.substring(2).toInt(), alarmToSet.substring(0, 2).toInt(), 1);
   RTC.alarm(ALARM_2);
   RTC.alarmInterrupt(ALARM_2, true); 
-  Serial.println("Alarm 2 set");
+  alarmlcd2 = "Alarme : " + String(alarmToSet.substring(0, 2).toInt()) + ":" + String(alarmToSet.substring(2).toInt());
+  lcd.clear();
+  displayAlarms();
 }
 
 void clockTrigger() {
@@ -235,6 +241,42 @@ void setCountdown() {
   RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
   RTC.alarm(ALARM_1);
   RTC.alarmInterrupt(ALARM_1, true);
+  alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));
+  lcd.clear();
+  displayAlarms();
+}
+
+void displayTime() {
+  if (actualTime != now()) {
+    actualTime = now();
+    lcd.setCursor(0, 1);
+    lcd.print(timeTToString(actualTime));
+    Serial.println(timeTToString(actualTime));
+    lcd.setCursor(0, 0);
+    lcd.print(dateTToString(actualTime));
+    Serial.println(dateTToString(actualTime));
+  }
+}
+
+void displayAlarms() {
+
+  if (alarmlcd1 == "") {
+    clearLine(3);
+  }
+
+  else {
+    lcd.setCursor(0, 3);
+    lcd.print(alarmlcd1);
+  }
+
+  if (alarmlcd2 == "") {
+    clearLine(2);
+  }
+
+  else {
+    lcd.setCursor(0, 2);
+    lcd.print(alarmlcd2);
+  }
 }
 
 void loop() {
@@ -255,28 +297,30 @@ void loop() {
     setTime();
   }
 
-  else if (keyPressed == 'D') {
-    //Cycle la view
-    Serial.println("not implemented");
+  else if (keyPressed == '#') {
+    // clairer alarmes déclenchées
+    displayAlarms();
   }
 
   if (clockInterrupt) {
-    lcd.clear();
-    lcd.setCursor(0, 4);
-    lcd.print("ALARME!!!");
     Serial.print("interrupt");
-    RTC.alarm(ALARM_1);
-    RTC.alarm(ALARM_2);
-    clockInterrupt = false;
-  }
+    if (RTC.alarm(ALARM_2)) {
+      clearLine(2);
+      lcd.setCursor(0, 2);
+      lcd.print("ALARME 2!!");
+      RTC.alarmInterrupt(ALARM_2, false); 
+      alarmlcd2 = "";
+    }
+    if (RTC.alarm(ALARM_1)) {
+      clearLine(3);
+      lcd.setCursor(0, 3);
+      lcd.print("ALARME 1!!");
+      RTC.alarmInterrupt(ALARM_1, false);
+      alarmlcd1 = "";
 
-  if (actualTime != now()) {
-    actualTime = now();
-    lcd.setCursor(0, 0);
-    lcd.print(timeTToString(actualTime));
-    Serial.println(timeTToString(actualTime));
-    lcd.setCursor(0, 1);
-    lcd.print(dateTToString(actualTime));
-    Serial.println(dateTToString(actualTime));
+    }
+    clockInterrupt = false;
+    // Son & lumieres
   }
+  displayTime();
 }
