@@ -15,8 +15,9 @@
 20. Afficher l'heure avec des leading 0 si nécessaire
 21. Msg d'erreur si date/heure invalide sur le lcd
 22. Afficher le countdown qui descend
-23. qqchose pour retirer une alarme déjà settée
 24. Bouton back? "*"
+25. S'assurer que ca sonne pas à 0:0:0
+26. Penser à une façon pour que je désactive pas facilement une alarme (D) (ex. bouton rigide?)
 
 7. Clairer le code pour qu'il soit le plus clair possible + doc string
 8. Faire un KiCad complet du circuit qui est clair
@@ -335,6 +336,15 @@ void loop() {
   else if (keyPressed == 'C') {
     //Modifier heure ou voir l'heure
     setTimeMenu();
+  }
+
+  else if (keyPressed == 'D') {
+    // désactiver toutes les alarmes -> penser à mettre un bouton rigide moins facilement accrochable
+    RTC.alarmInterrupt(ALARM_2, false); 
+    alarmlcd2 = "";
+    RTC.alarmInterrupt(ALARM_1, false);
+    alarmlcd1 = "";
+    displayAlarms();
   }
 
   else if (keyPressed == '#') {

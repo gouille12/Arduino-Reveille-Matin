@@ -6,25 +6,27 @@
 
 
 3. Bouton pour la backlight (bouton physique on/off)
-
-4. Gestion des input erronés (* = back) --> PROCHAINE ÉTAPE
-
 5. Avoir un effet lumineux lors d'un interrupt (6 LED qui éclaire l'une après l'autre en cercle?)
 6. Avoir un effet sonore lors d'un interrupt (https://diyhacking.com/arduino-audio-player/, un genre de petite mélodie type cellulaire genre?)
-7. Clairer le code pour qu'il soit le plus clair possible + doc string
-8. Faire un KiCad complet du circuit qui est clair
 9. Alimentation à base de pile (attn 9V -> 5V direct = pas bon) + Pouvoir afficher l'état de la pile?
-10. Prévoir implantation permanente (eagle + etching? ou plaque avec trous?)
-11. Esthétisme du produit fini
 12. Affichage sur le LCD propre
-13. Test de toutes les fonctions
-14. sauver le code sur github
-15. Penser à ce que je recherche dans un réveille-matin
 16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
-18. Charger les piles au complet
 19. Utiliser la fonction Timettostring pour les alarmes
 20. Afficher l'heure avec des leading 0 si nécessaire
 21. Msg d'erreur si date/heure invalide sur le lcd
+22. Afficher le countdown qui descend
+23. qqchose pour retirer une alarme déjà settée 'D'
+24. Bouton back? "*"
+25. S'assurer que ca sonne pas à 0:0:0
+
+7. Clairer le code pour qu'il soit le plus clair possible + doc string
+8. Faire un KiCad complet du circuit qui est clair
+10. Prévoir implantation permanente (eagle + etching? ou plaque avec trous?)
+11. Esthétisme du produit fini
+13. Test de toutes les fonctions
+14. sauver le code sur github
+15. Penser à ce que je recherche dans un réveille-matin
+18. Charger les piles au complet
 */
 
 
@@ -239,15 +241,11 @@ void setCountdown() {
   Serial.println(minute(countdownTargetTimeT));
   Serial.println(hour(countdownTargetTimeT));
 
-  if (isValidTime(countdownToSet) == true) {
-    RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
-    RTC.alarm(ALARM_1);
-    RTC.alarmInterrupt(ALARM_1, true);
-    alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));  
-  }
-  else {
-    Serial.println("Heure/date invalide");
-  }    
+  RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
+  RTC.alarm(ALARM_1);
+  RTC.alarmInterrupt(ALARM_1, true);
+  alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));  
+  
   lcd.clear();
   displayAlarms();
 }
@@ -286,7 +284,7 @@ void displayAlarms() {
 }
 
 bool isValidTime(String time) {
-  // time = HHMMSS, date = JJMMAAAA
+  // time = HHMMSS
   int hours = time.substring(0, 2).toInt();
   int minutes = time.substring(2, 4).toInt();
   int seconds = time.substring(4).toInt();
@@ -304,6 +302,7 @@ bool isValidTime(String time) {
 }
 
 bool isValidDate(String date) {
+  // date = JJMMAAAA
   int days = date.substring(0, 2).toInt();
   int months = date.substring(2, 4).toInt();
   int years = date.substring(4).toInt();
@@ -318,8 +317,6 @@ bool isValidDate(String date) {
     return false;
   }
 }
-
-
 
 
 
@@ -339,6 +336,15 @@ void loop() {
   else if (keyPressed == 'C') {
     //Modifier heure ou voir l'heure
     setTimeMenu();
+  }
+
+  else if (keyPressed == 'D') {
+    // désactiver toutes les alarmes
+    RTC.alarmInterrupt(ALARM_2, false); 
+    alarmlcd2 = "";
+    RTC.alarmInterrupt(ALARM_1, false);
+    alarmlcd1 = "";
+    displayAlarms();
   }
 
   else if (keyPressed == '#') {
