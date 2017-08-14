@@ -6,7 +6,9 @@
 
 
 3. Bouton pour la backlight (bouton physique on/off)
-4. Gestion des input erronés (* = back)
+
+4. Gestion des input erronés (* = back) --> PROCHAINE ÉTAPE
+
 5. Avoir un effet lumineux lors d'un interrupt (6 LED qui éclaire l'une après l'autre en cercle?)
 6. Avoir un effet sonore lors d'un interrupt (https://diyhacking.com/arduino-audio-player/, un genre de petite mélodie type cellulaire genre?)
 7. Clairer le code pour qu'il soit le plus clair possible + doc string
@@ -21,8 +23,8 @@
 16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
 18. Charger les piles au complet
 19. Utiliser la fonction Timettostring pour les alarmes
-
-17. Afficher le jour de la semaine en lettres + retirer set jour de semaine + commit - PROCHAINE ÉTAPE
+20. Afficher l'heure avec des leading 0 si nécessaire
+21. Msg d'erreur si date/heure invalide sur le lcd
 */
 
 
@@ -82,9 +84,6 @@ void setup() {
 
   lcd.begin(20, 4);
   lcd.backlight(); // Penser à retirer
-  lcd.setCursor(0, 0);
-  lcd.print("Init...");
-  delay(1000);
   lcd.clear();
 
   setSyncProvider(RTC.get); // sync time.h et rtc
@@ -99,7 +98,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(PININTERRUPT), clockTrigger, FALLING);
 }
 
-void setTime() {
+void setTimeMenu() {
   String timeToSet;
   String dateToSet;
   String dayOfWeekToSet;
@@ -142,19 +141,23 @@ void setTime() {
 
   Serial.println(timeToSet);
   Serial.println(dateToSet);
-
-  tmElements_t tm;
-  time_t t;
-  tm.Year = dateToSet.substring(6).toInt();
-  tm.Year = y2kYearToTm(tm.Year);
-  tm.Month = dateToSet.substring(2, 4).toInt();
-  tm.Day = dateToSet.substring(0, 2).toInt();
-  tm.Hour = timeToSet.substring(0, 2).toInt();
-  tm.Minute = timeToSet.substring(2, 4).toInt();
-  tm.Second = timeToSet.substring(4).toInt();
-  t = makeTime(tm);
-  RTC.set(t);
-  setTime(t);
+  if (isValidTime(timeToSet) == true || isValidDate(dateToSet) == true) {
+    tmElements_t tm;
+    time_t t;
+    tm.Year = dateToSet.substring(6).toInt();
+    tm.Year = y2kYearToTm(tm.Year);
+    tm.Month = dateToSet.substring(2, 4).toInt();
+    tm.Day = dateToSet.substring(0, 2).toInt();
+    tm.Hour = timeToSet.substring(0, 2).toInt();
+    tm.Minute = timeToSet.substring(2, 4).toInt();
+    tm.Second = timeToSet.substring(4).toInt();
+    t = makeTime(tm);
+    RTC.set(t);
+    setTime(t);    
+  }
+  else {
+    Serial.println("Heure/date invalide");
+  }
   lcd.clear();
 }
 
@@ -181,11 +184,20 @@ void setAlarm2() {
   }
 
   Serial.println(alarmToSet.substring(2).toInt());
-  Serial.println(alarmToSet.substring(0, 2).toInt());  
-  RTC.setAlarm(ALM2_MATCH_HOURS, 0, alarmToSet.substring(2).toInt(), alarmToSet.substring(0, 2).toInt(), 1);
-  RTC.alarm(ALARM_2);
-  RTC.alarmInterrupt(ALARM_2, true); 
-  alarmlcd2 = "Alarme : " + String(alarmToSet.substring(0, 2).toInt()) + ":" + String(alarmToSet.substring(2).toInt());
+  Serial.println(alarmToSet.substring(0, 2).toInt());
+
+
+  if (isValidTime(alarmToSet) == true) {
+    RTC.setAlarm(ALM2_MATCH_HOURS, 0, alarmToSet.substring(2).toInt(), alarmToSet.substring(0, 2).toInt(), 1);
+    RTC.alarm(ALARM_2);
+    RTC.alarmInterrupt(ALARM_2, true); 
+    alarmlcd2 = "Alarme : " + String(alarmToSet.substring(0, 2).toInt()) + ":" + String(alarmToSet.substring(2).toInt());  
+  }
+
+  else {
+    Serial.println("Heure/date invalide");
+  }  
+
   lcd.clear();
   displayAlarms();
 }
@@ -226,10 +238,16 @@ void setCountdown() {
   Serial.println(second(countdownTargetTimeT));
   Serial.println(minute(countdownTargetTimeT));
   Serial.println(hour(countdownTargetTimeT));
-  RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
-  RTC.alarm(ALARM_1);
-  RTC.alarmInterrupt(ALARM_1, true);
-  alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));
+
+  if (isValidTime(countdownToSet) == true) {
+    RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
+    RTC.alarm(ALARM_1);
+    RTC.alarmInterrupt(ALARM_1, true);
+    alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));  
+  }
+  else {
+    Serial.println("Heure/date invalide");
+  }    
   lcd.clear();
   displayAlarms();
 }
@@ -267,6 +285,44 @@ void displayAlarms() {
   }
 }
 
+bool isValidTime(String time) {
+  // time = HHMMSS, date = JJMMAAAA
+  int hours = time.substring(0, 2).toInt();
+  int minutes = time.substring(2, 4).toInt();
+  int seconds = time.substring(4).toInt();
+
+  if (hours <= 24 && hours >= 0 &&
+    minutes <= 59 && minutes >= 0 &&
+    seconds <= 59 && seconds >= 0 &&
+    time.toInt() != 0) {
+    return true;
+  }
+
+  else {
+    return false;
+  }
+}
+
+bool isValidDate(String date) {
+  int days = date.substring(0, 2).toInt();
+  int months = date.substring(2, 4).toInt();
+  int years = date.substring(4).toInt();
+
+  if (days <= 31 && days >= 1 &&
+    months <= 12 && months >= 1 &&
+    years >= 1970 && date.toInt() != 0) {
+    return true;
+  }
+
+  else {
+    return false;
+  }
+}
+
+
+
+
+
 void loop() {
 
   keyPressed = keypad.getKey();
@@ -282,7 +338,7 @@ void loop() {
 
   else if (keyPressed == 'C') {
     //Modifier heure ou voir l'heure
-    setTime();
+    setTimeMenu();
   }
 
   else if (keyPressed == '#') {
