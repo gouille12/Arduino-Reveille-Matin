@@ -5,13 +5,6 @@
 07-08-2017-14h12 = Compte à rebours ok
 
 
-2. Pouvoir afficher le bon mode sans avoir à modifier le shit - PROCHAINE ÉTAPE + commit
-  Tout afficher sur l'écran en même temps
-  Ligne 1 = Date
-  Ligne 2 = Heure
-  Ligne 3 = Pas d'alarme/Heure de l'alarme
-  Ligne 4 = Pas de countdown/Temps restant au count
-
 3. Bouton pour la backlight (bouton physique on/off)
 4. Gestion des input erronés (* = back)
 5. Avoir un effet lumineux lors d'un interrupt (6 LED qui éclaire l'une après l'autre en cercle?)
@@ -25,6 +18,11 @@
 13. Test de toutes les fonctions
 14. sauver le code sur github
 15. Penser à ce que je recherche dans un réveille-matin
+16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
+18. Charger les piles au complet
+19. Utiliser la fonction Timettostring pour les alarmes
+
+17. Afficher le jour de la semaine en lettres + retirer set jour de semaine + commit - PROCHAINE ÉTAPE
 */
 
 
@@ -53,8 +51,6 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 time_t actualTime;
 char keyPressed;
 volatile bool clockInterrupt = false;
-bool alarm1Flag;
-bool alarm2Flag;
 String alarmlcd1 = "";
 String alarmlcd2 = "";
 
@@ -68,7 +64,8 @@ String timeTToString(time_t t) {
 
 String dateTToString(time_t t) {
   String strDateT = "";
-  strDateT = strDateT + String(weekday(t)) + " " + String(day(t)) + "/" + String(month(t)) + "/" + String(year());
+  String dayOfWeekLong[] = {"Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"};
+  strDateT = strDateT + dayOfWeekLong[weekday(t)] + " " + String(day(t)) + "/" + String(month(t)) + "/" + String(year());
   return strDateT;
 }
 
@@ -143,21 +140,8 @@ void setTime() {
     }
   }
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Entrez le jour de la semaine"); // Penser à retirer
-  lcd.setCursor(0, 1);
-  lcd.print("0/7");
-  lcd.setCursor(0, 1);
-  keyPressed = keypad.waitForKey();
-  if (keyPressed) {
-    lcd.print(keyPressed);
-    dayOfWeekToSet = keyPressed;
-  }
-
   Serial.println(timeToSet);
   Serial.println(dateToSet);
-  Serial.println(dayOfWeekToSet);
 
   tmElements_t tm;
   time_t t;
@@ -201,7 +185,6 @@ void setAlarm2() {
   RTC.setAlarm(ALM2_MATCH_HOURS, 0, alarmToSet.substring(2).toInt(), alarmToSet.substring(0, 2).toInt(), 1);
   RTC.alarm(ALARM_2);
   RTC.alarmInterrupt(ALARM_2, true); 
-  alarm2Flag = true;
   alarmlcd2 = "Alarme : " + String(alarmToSet.substring(0, 2).toInt()) + ":" + String(alarmToSet.substring(2).toInt());
   lcd.clear();
   displayAlarms();
@@ -246,7 +229,6 @@ void setCountdown() {
   RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
   RTC.alarm(ALARM_1);
   RTC.alarmInterrupt(ALARM_1, true);
-  alarm1Flag = true;
   alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));
   lcd.clear();
   displayAlarms();
@@ -311,12 +293,14 @@ void loop() {
   if (clockInterrupt) {
     Serial.print("interrupt");
     if (RTC.alarm(ALARM_2)) {
+      clearLine(2);
       lcd.setCursor(0, 2);
       lcd.print("ALARME 2!!");
       RTC.alarmInterrupt(ALARM_2, false); 
       alarmlcd2 = "";
     }
     if (RTC.alarm(ALARM_1)) {
+      clearLine(3);
       lcd.setCursor(0, 3);
       lcd.print("ALARME 1!!");
       RTC.alarmInterrupt(ALARM_1, false);

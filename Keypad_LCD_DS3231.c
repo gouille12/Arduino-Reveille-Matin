@@ -21,8 +21,6 @@
 16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
 18. Charger les piles au complet
 19. Utiliser la fonction Timettostring pour les alarmes
-
-17. Afficher le jour de la semaine en lettres + retirer set jour de semaine + commit - PROCHAINE ÉTAPE
 */
 
 
@@ -64,7 +62,8 @@ String timeTToString(time_t t) {
 
 String dateTToString(time_t t) {
   String strDateT = "";
-  strDateT = strDateT + String(weekday(t)) + " " + String(day(t)) + "/" + String(month(t)) + "/" + String(year());
+  String dayOfWeekLong[] = {"Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"};
+  strDateT = strDateT + dayOfWeekLong[weekday(t)] + " " + String(day(t)) + "/" + String(month(t)) + "/" + String(year());
   return strDateT;
 }
 
@@ -139,21 +138,8 @@ void setTime() {
     }
   }
 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Entrez le jour de la semaine"); // Penser à retirer
-  lcd.setCursor(0, 1);
-  lcd.print("0/7");
-  lcd.setCursor(0, 1);
-  keyPressed = keypad.waitForKey();
-  if (keyPressed) {
-    lcd.print(keyPressed);
-    dayOfWeekToSet = keyPressed;
-  }
-
   Serial.println(timeToSet);
   Serial.println(dateToSet);
-  Serial.println(dayOfWeekToSet);
 
   tmElements_t tm;
   time_t t;
