@@ -10,14 +10,15 @@
 6. Avoir un effet sonore lors d'un interrupt (https://diyhacking.com/arduino-audio-player/, un genre de petite mélodie type cellulaire genre?)
 9. Alimentation à base de pile (attn 9V -> 5V direct = pas bon) + Pouvoir afficher l'état de la pile?
 12. Affichage sur le LCD propre
-16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre
-19. Utiliser la fonction Timettostring pour les alarmes
+16. Assurer la précision des alarmes : doit sonner exactement 10 sec après avoir mis le dernier chiffre -> CHANGE? (voir sur qq heures si c'est le meme écart)
 20. Afficher l'heure avec des leading 0 si nécessaire
 21. Msg d'erreur si date/heure invalide sur le lcd
-22. Afficher le countdown qui descend
-23. qqchose pour retirer une alarme déjà settée 'D'
 24. Bouton back? "*"
 25. S'assurer que ca sonne pas à 0:0:0
+26. Penser à une façon pour que je désactive pas facilement une alarme (D) (ex. bouton rigide?)
+27. Bouton power
+28. Erreur si countdown 24h et + (match_hours seulement)
+29. Éviter le plus possible les refresh visibles
 
 7. Clairer le code pour qu'il soit le plus clair possible + doc string
 8. Faire un KiCad complet du circuit qui est clair
@@ -53,7 +54,10 @@ byte colPins[COLS] = {6, 5, 4, 3};
 byte rowPins[ROWS] = {10, 9, 8, 7};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 time_t actualTime;
+time_t countdownTargetTimeT;
+time_t countdownLCD;
 char keyPressed;
+bool backlightFlag;
 volatile bool clockInterrupt = false;
 String alarmlcd1 = "";
 String alarmlcd2 = "";
@@ -85,8 +89,9 @@ void setup() {
   Serial.begin(9600);
 
   lcd.begin(20, 4);
-  lcd.backlight(); // Penser à retirer
   lcd.clear();
+  lcd.noBacklight();
+  backlightFlag = false;
 
   setSyncProvider(RTC.get); // sync time.h et rtc
   Serial.println("RTCsync");
@@ -208,8 +213,7 @@ void clockTrigger() {
   clockInterrupt = true;
 }
 
-void setCountdown() {
-
+time_t setCountdown() {
   String countdownToSet;
 
   lcd.clear();
@@ -233,33 +237,49 @@ void setCountdown() {
   int countdownHours = countdownToSet.substring(0, 2).toInt();
   int countdownMinutes = countdownToSet.substring(2, 4).toInt();
   int countdownSeconds = countdownToSet.substring(4).toInt();
-  time_t countdownTargetTimeT = now() + countdownHours*3600 + countdownMinutes*60 + countdownSeconds;
-
-
-
-  Serial.println(second(countdownTargetTimeT));
-  Serial.println(minute(countdownTargetTimeT));
-  Serial.println(hour(countdownTargetTimeT));
+  time_t nowTime = now(); // pas que ca change pendant l'assignation
+  tmElements_t tmcountdown;
+  tmcountdown.Year = String(year(nowTime)).substring(2).toInt();
+  tmcountdown.Year = y2kYearToTm(tmcountdown.Year);
+  tmcountdown.Month = month(nowTime);
+  tmcountdown.Day = day(nowTime);
+  tmcountdown.Hour = countdownHours + hour(nowTime);
+  tmcountdown.Minute = countdownMinutes + minute(nowTime);
+  tmcountdown.Second = countdownSeconds + second(nowTime);
+  countdownTargetTimeT = makeTime(tmcountdown);
 
   RTC.setAlarm(ALM1_MATCH_HOURS, second(countdownTargetTimeT), minute(countdownTargetTimeT), hour(countdownTargetTimeT), 1);
   RTC.alarm(ALARM_1);
   RTC.alarmInterrupt(ALARM_1, true);
-  alarmlcd1 = "Alarme : " + String(hour(countdownTargetTimeT)) + ":" + String(minute(countdownTargetTimeT)) + ":" + String(second(countdownTargetTimeT));  
-  
+  alarmlcd1 = "Alarme : " + timeTToString(countdownTargetTimeT);
   lcd.clear();
-  displayAlarms();
+  Serial.println("_________INFO_____________");
+  Serial.println(timeTToString(countdownTargetTimeT));
+  Serial.println("__________END INFO_____________");
 }
+
 
 void displayTime() {
   if (actualTime != now()) {
     actualTime = now();
+    clearLine(1);
     lcd.setCursor(0, 1);
     lcd.print(timeTToString(actualTime));
     Serial.println(timeTToString(actualTime));
+    clearLine(0);
     lcd.setCursor(0, 0);
     lcd.print(dateTToString(actualTime));
     Serial.println(dateTToString(actualTime));
+    
+    if (alarmlcd1 != "") {
+      clearLine(3);
+      countdownLCD = countdownTargetTimeT - now();
+      lcd.setCursor(0,3);
+      lcd.print(timeTToString(countdownLCD));
+    }
   }
+
+
 }
 
 void displayAlarms() {
@@ -339,12 +359,23 @@ void loop() {
   }
 
   else if (keyPressed == 'D') {
-    // désactiver toutes les alarmes
+    // désactiver toutes les alarmes -> penser à mettre un bouton rigide moins facilement accrochable
     RTC.alarmInterrupt(ALARM_2, false); 
     alarmlcd2 = "";
     RTC.alarmInterrupt(ALARM_1, false);
     alarmlcd1 = "";
     displayAlarms();
+  }
+
+  else if (keyPressed == '*') {
+    if (backlightFlag == true) {
+      lcd.noBacklight();
+      backlightFlag = false;
+    }
+    else if (backlightFlag == false) {
+      lcd.backlight();
+      backlightFlag = true;
+    }
   }
 
   else if (keyPressed == '#') {
